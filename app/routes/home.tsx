@@ -603,7 +603,7 @@ export default function Home() {
           </article>
         )}
 
-        {isEyeRestActive && (
+        {(isEyeRestActive || activeEyeRestSecondsRemaining < EYE_REST_DURATION_SECONDS) && (
           <p className="active-rest-timer" aria-live="polite">
             {copy.activeRest} <strong>{activeEyeRestTimerLabel}</strong>
           </p>
