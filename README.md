@@ -1,87 +1,116 @@
-# Welcome to React Router!
+# Outside
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Outside is a small focus-break timer that helps you rest your eyes and move during long periods at a desk.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+The app runs two independent reminder cycles:
 
-## Features
+- An eye-rest reminder every 20 minutes, followed by a 20-second rest.
+- A movement reminder every 30 minutes, with a rotating stretch or mobility suggestion.
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+It is available in English, Traditional Chinese, and Simplified Chinese. The interface also includes light and dark modes, pause/resume controls, reset, and browser notifications.
 
-## Getting Started
+Live site: [ytwb.github.io/look-outside](https://ytwb.github.io/look-outside)
 
-### Installation
+## Requirements
 
-Install the dependencies:
+- Node.js 24 or newer for the Docker image and local development
+- npm
+- A modern browser
+
+## Run Locally
+
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-### Development
-
-Start the development server with HMR:
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+Open `http://localhost:5173` in your browser.
 
-## Building for Production
+The development server supports hot module replacement. Browser notifications are requested the first time you start the timers. Notification support and permission behavior depend on the browser and its site settings.
 
-Create a production build:
+## Available Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local React Router development server. |
+| `npm run typecheck` | Generate route types and run the TypeScript compiler. |
+| `npm run build` | Create the production client and server build. |
+| `npm run start` | Serve the existing production build. |
+| `npm run deploy` | Build and publish `build/client` to GitHub Pages. |
+
+## Production Build
+
+Build the application:
 
 ```bash
 npm run build
 ```
 
-## Deployment
+The build output is written to:
 
-### Docker Deployment
+```text
+build/client/  Static client assets
+build/server/  Production server bundle
+```
 
-To build and run using Docker:
+To serve the production build locally:
 
 ```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+npm run start
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+The app is configured with the `/look-outside/` base path for GitHub Pages hosting.
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+## Docker
 
-### DIY Deployment
+Build the production image:
 
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
+```bash
+docker build -t outside-timer .
 ```
 
-## Styling
+Run the container:
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+```bash
+docker run --rm -p 3000:3000 outside-timer
+```
 
----
+Open `http://localhost:3000/look-outside/` in your browser. The container uses the production React Router server and Node.js 24 Alpine.
 
-Built with ❤️ using React Router.
+## How It Works
+
+1. Select a language and choose light or dark mode.
+2. Select **Start focus timer** and grant notification permission when prompted.
+3. After 20 minutes, start the 20-second eye rest from the page or from the browser notification.
+4. After 30 minutes, follow the displayed movement reminder.
+5. Use **Pause timers** to pause all countdowns, **Resume timers** to continue, or **Reset** to restore both cycles to their initial durations.
+
+If a browser does not support notifications, or notifications are blocked, the on-page timers still work.
+
+## Technology
+
+- React 19
+- React Router 8 in Framework Mode
+- TypeScript
+- Vite
+- Tailwind CSS
+- GitHub Pages deployment through `gh-pages`
+
+## Project Structure
+
+```text
+app/
+	app.css              Global styles
+	root.tsx             Application shell and document metadata
+	routes.ts            Route configuration
+	routes/home.tsx      Timer UI and timer behavior
+Dockerfile             Multi-stage production image
+react-router.config.ts React Router configuration
+```
