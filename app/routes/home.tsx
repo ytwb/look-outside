@@ -458,7 +458,7 @@ export default function Home() {
     const notification = new Notification(title, {
       body,
       requireInteraction: true,
-      tag: `outside-${title.toLowerCase().replaceAll(" ", "-")}`,
+      tag: `outside-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     });
 
     if (onClick) {
