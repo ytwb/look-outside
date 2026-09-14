@@ -385,6 +385,35 @@ h1 {
   padding: 0;
   overflow: auto;
   list-style: none;
+  scrollbar-color: #a7c6bb #f5f7ee;
+}
+
+.dark-mode .notification-list {
+  scrollbar-color: #547a70 #152b28;
+}
+
+.notification-list::-webkit-scrollbar {
+  width: 0.7rem;
+}
+
+.notification-list::-webkit-scrollbar-track {
+  background: #f5f7ee;
+  border-radius: 999px;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background: #a7c6bb;
+  border: 2px solid #f5f7ee;
+  border-radius: 999px;
+}
+
+.dark-mode .notification-list::-webkit-scrollbar-track {
+  background: #152b28;
+}
+
+.dark-mode .notification-list::-webkit-scrollbar-thumb {
+  background: #547a70;
+  border-color: #152b28;
 }
 
 .notification-item {
