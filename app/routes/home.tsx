@@ -263,6 +263,7 @@ export default function Home() {
   const pendingEyeRestNotificationIdRef = useRef<string | null>(null);
   const activeEyeRestNotificationIdRef = useRef<string | null>(null);
   const completedEyeRestNotificationIdsRef = useRef(new Set<string>());
+  const isCompletingEyeRestRef = useRef(false);
   const notificationRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [locale, setLocale] = useState<Locale>("zh");
@@ -354,18 +355,26 @@ export default function Home() {
     const currentActiveEyeRestEndsAt = activeEyeRestEndsAt;
 
     function updateActiveEyeRestTimer() {
-      setActiveEyeRestSecondsRemaining(getSecondsUntil(currentActiveEyeRestEndsAt));
+      const remainingSeconds = getSecondsUntil(currentActiveEyeRestEndsAt);
+
+      setActiveEyeRestSecondsRemaining(remainingSeconds);
+
+      if (remainingSeconds === 0) {
+        completeActiveEyeRest();
+      }
     }
 
     updateActiveEyeRestTimer();
     const interval = window.setInterval(updateActiveEyeRestTimer, 1000);
+    window.addEventListener("focus", updateActiveEyeRestTimer);
     window.addEventListener("visibilitychange", updateActiveEyeRestTimer);
 
     return () => {
       window.clearInterval(interval);
+      window.removeEventListener("focus", updateActiveEyeRestTimer);
       window.removeEventListener("visibilitychange", updateActiveEyeRestTimer);
     };
-  }, [activeEyeRestEndsAt, isEyeRestActive]);
+  }, [activeEyeRestEndsAt, isEyeRestActive, isRunning]);
 
   useEffect(() => {
     activeEyeRestSecondsRemainingRef.current = activeEyeRestSecondsRemaining;
@@ -374,6 +383,7 @@ export default function Home() {
   function clearActiveEyeRestState() {
     setIsEyeRestActive(false);
     isEyeRestActiveRef.current = false;
+    isCompletingEyeRestRef.current = false;
     setIsEyeRestPending(false);
     isEyeRestPendingRef.current = false;
     pendingEyeRestNotificationIdRef.current = null;
@@ -383,9 +393,10 @@ export default function Home() {
     setActiveEyeRestSecondsRemaining(EYE_REST_DURATION_SECONDS);
   }
 
-  useEffect(() => {
-    if (!isEyeRestActive || activeEyeRestSecondsRemaining !== 0) return;
+  function completeActiveEyeRest() {
+    if (isCompletingEyeRestRef.current) return;
 
+    isCompletingEyeRestRef.current = true;
     const notificationHistoryId = activeEyeRestNotificationIdRef.current;
 
     if (notificationHistoryId) {
@@ -400,6 +411,12 @@ export default function Home() {
     } else {
       setEyeRestEndsAt(null);
     }
+  }
+
+  useEffect(() => {
+    if (!isEyeRestActive || activeEyeRestSecondsRemaining !== 0) return;
+
+    completeActiveEyeRest();
   }, [activeEyeRestSecondsRemaining, isEyeRestActive, isRunning]);
 
   useEffect(() => {
