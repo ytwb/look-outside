@@ -22,7 +22,7 @@ Live site: [ytwb.github.io/look-outside](https://ytwb.github.io/look-outside)
 Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 Start the development server:
@@ -31,7 +31,7 @@ Start the development server:
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173/look-outside/` in your browser.
 
 The development server supports hot module replacement. Browser notifications are requested the first time you start the timers. Notification support and permission behavior depend on the browser and its site settings.
 
