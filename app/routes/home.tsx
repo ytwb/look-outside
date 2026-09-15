@@ -15,6 +15,34 @@ type NotificationHistoryItem = {
   isChecked: boolean;
 };
 
+type StoredNotificationHistoryItem = Omit<NotificationHistoryItem, "sentAt"> & {
+  sentAt: string;
+};
+
+type StoredTimerState = {
+  activeEyeRestEndsAt: number | null;
+  activeEyeRestNotificationId: string | null;
+  activeEyeRestSecondsRemaining: number;
+  completedEyeRestNotificationIds: string[];
+  eyeRestEndsAt: number | null;
+  eyeRestSecondsRemaining: number;
+  isDarkMode: boolean;
+  isEyeRestActive: boolean;
+  isEyeRestPending: boolean;
+  isRunning: boolean;
+  locale: Locale;
+  movementEndsAt: number | null;
+  movementSecondsRemaining: number;
+  notificationHistory: StoredNotificationHistoryItem[];
+  pendingEyeRestNotificationId: string | null;
+};
+
+type TimerState = Omit<StoredTimerState, "notificationHistory"> & {
+  notificationHistory: NotificationHistoryItem[];
+};
+
+const TIMER_STATE_STORAGE_KEY = "outside-timer-state-v1";
+
 const LOCALE_OPTIONS: Array<{ value: Locale; label: string }> = [
   { value: "en", label: "English" },
   { value: "zh", label: "繁體中文" },
@@ -29,7 +57,7 @@ const MOVEMENT_REMINDERS = [
       zh: "坐直身體，將一隻手放在頭頂，輕輕將頭部往側邊壓，直到感覺脖子側邊有拉伸感，維持15至30秒再換邊。",
     },
   },
-   {
+  {
     title: { en: "45-Degree Diagonal Stretch", zh: "45度斜向拉伸" },
     body: {
       en: "Sit upright and turn your head 45 degrees to the left. Use your left hand to gently pull your head diagonally down toward your armpit. Hold for 10 to 15 seconds, then switch sides.",
@@ -85,7 +113,7 @@ const MOVEMENT_REMINDERS = [
       zh: "坐在椅緣，將單腿向前伸直、腳跟著地、腳尖勾起，身體向前傾，伸展大腿後側，維持15至30秒。",
     },
   },
-    {
+  {
     title: { en: "Seated Cat-Cow Stretch", zh: "坐姿貓牛式" },
     body: {
       en: "Cat: Round your spine, drop your head, and look toward your belly button. Cow: Arch your back, lift your chest, and look slightly upward.",
@@ -99,7 +127,7 @@ const MOVEMENT_REMINDERS = [
       zh: "雙手在背後十指交扣。吸氣時手肘伸直，雙肩後旋，胸口向天花板延伸。",
     },
   },
-    {
+  {
     title: { en: "Seated Ankle Rolls and Toe Flexes", zh: "坐姿腳踝腳趾運動" },
     body: {
       en: "Ankle Rolls: Circle your ankles clockwise and counterclockwise. Toe Flexes: Curl your toes inward, then spread them out wide.",
@@ -113,16 +141,22 @@ const COPY = {
     activeRest: "Look outside for",
     anotherMovementReminder: "Another movement reminder",
     bothRemindersRunning: "Both reminders are running.",
-    combinedNotificationBody: "Click here to start your eye rest. Take a 20-second look outside. Then try {title}: {body}",
+    combinedNotificationBody:
+      "Click here to start your eye rest. Take a 20-second look outside. Then try {title}: {body}",
     combinedNotificationTitle: "Eye rest and movement break",
+    complete: "Complete",
     clearNotifications: "Clear notifications",
     darkMode: "Dark mode",
-    eyeRestAria: "{minutes} minutes and {seconds} seconds until your next eye rest",
-    eyeRestInProgressNotificationBody: "Look outside and rest your eyes for 20 seconds.",
-    eyeRestNotificationBody: "Click here to start your eye rest. Take a 20-second rest. Look outside and let your eyes relax.",
+    eyeRestAria:
+      "{minutes} minutes and {seconds} seconds until your next eye rest",
+    eyeRestInProgressNotificationBody:
+      "Look outside and rest your eyes for 20 seconds.",
+    eyeRestNotificationBody:
+      "Click here to start your eye rest. Take a 20-second rest. Look outside and let your eyes relax.",
     eyeRestNotificationTitle: "Eye rest",
     eyebrow: "Focus and movement ritual",
-    intro: "Rest your eyes every twenty minutes and leave your seat every thirty.",
+    intro:
+      "Rest your eyes every twenty minutes and leave your seat every thirty.",
     lightMode: "Light mode",
     localeToggle: "Language",
     moveIn: "Move in",
@@ -146,13 +180,16 @@ const COPY = {
     activeRest: "看向窗外",
     anotherMovementReminder: "換一個活動提醒",
     bothRemindersRunning: "兩個提醒計時中。",
-    combinedNotificationBody: "點擊這裡開始護眼休息。看向窗外20秒，然後試試「{title}」：{body}",
+    combinedNotificationBody:
+      "點擊這裡開始護眼休息。看向窗外20秒，然後試試「{title}」：{body}",
     combinedNotificationTitle: "護眼休息與活動提醒",
+    complete: "完成",
     clearNotifications: "清除通知",
     darkMode: "深色模式",
     eyeRestAria: "距離下一次護眼休息還有{minutes}分{seconds}秒",
     eyeRestInProgressNotificationBody: "看向窗外，讓眼睛休息20秒。",
-    eyeRestNotificationBody: "點擊這裡開始護眼休息。休息20秒，看向窗外放鬆眼睛。",
+    eyeRestNotificationBody:
+      "點擊這裡開始護眼休息。休息20秒，看向窗外放鬆眼睛。",
     eyeRestNotificationTitle: "護眼休息",
     eyebrow: "專注與活動節奏",
     intro: "每20分鐘讓眼睛休息，每30分鐘離開座位活動一下。",
@@ -179,13 +216,16 @@ const COPY = {
     activeRest: "看向窗外",
     anotherMovementReminder: "换一个活动提醒",
     bothRemindersRunning: "两个提醒计时中。",
-    combinedNotificationBody: "点击这里开始护眼休息。看向窗外20秒，然后试试「{title}」：{body}",
+    combinedNotificationBody:
+      "点击这里开始护眼休息。看向窗外20秒，然后试试「{title}」：{body}",
     combinedNotificationTitle: "护眼休息与活动提醒",
+    complete: "完成",
     clearNotifications: "清除通知",
     darkMode: "深色模式",
     eyeRestAria: "距离下一次护眼休息还有{minutes}分{seconds}秒",
     eyeRestInProgressNotificationBody: "看向窗外，让眼睛休息20秒。",
-    eyeRestNotificationBody: "点击这里开始护眼休息。休息20秒，看向窗外放松眼睛。",
+    eyeRestNotificationBody:
+      "点击这里开始护眼休息。休息20秒，看向窗外放松眼睛。",
     eyeRestNotificationTitle: "护眼休息",
     eyebrow: "专注与活动节奏",
     intro: "每20分钟让眼睛休息，每30分钟离开座位活动一下。",
@@ -215,10 +255,15 @@ function getSecondsUntil(timestamp: number) {
 }
 
 function getMovementReminder() {
-  return MOVEMENT_REMINDERS[Math.floor(Math.random() * MOVEMENT_REMINDERS.length)];
+  return MOVEMENT_REMINDERS[
+    Math.floor(Math.random() * MOVEMENT_REMINDERS.length)
+  ];
 }
 
-function getLocalizedText<T extends Record<string, string | undefined>>(values: T, locale: Locale) {
+function getLocalizedText<T extends Record<string, string | undefined>>(
+  values: T,
+  locale: Locale,
+) {
   return values[locale] ?? values.zh ?? values.en ?? "";
 }
 
@@ -228,9 +273,211 @@ function getInitialNotificationPermission() {
   return Notification.permission;
 }
 
+function getDefaultTimerState(): TimerState {
+  return {
+    activeEyeRestEndsAt: null,
+    activeEyeRestNotificationId: null,
+    activeEyeRestSecondsRemaining: EYE_REST_DURATION_SECONDS,
+    completedEyeRestNotificationIds: [],
+    eyeRestEndsAt: null,
+    eyeRestSecondsRemaining: TIMER_DURATION_SECONDS,
+    isDarkMode: true,
+    isEyeRestActive: false,
+    isEyeRestPending: false,
+    isRunning: false,
+    locale: "zh",
+    movementEndsAt: null,
+    movementSecondsRemaining: MOVEMENT_REMINDER_DURATION_SECONDS,
+    notificationHistory: [],
+    pendingEyeRestNotificationId: null,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getStoredBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function getStoredNumber(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function getStoredNumberOrNull(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getStoredStringOrNull(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function getStoredLocale(value: unknown) {
+  return value === "en" || value === "zh" || value === "zh-CN" ? value : "zh";
+}
+
+function getStoredNotificationHistory(
+  value: unknown,
+): NotificationHistoryItem[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+
+    const id = item.id;
+    const title = item.title;
+    const body = item.body;
+    const sentAt = item.sentAt;
+
+    if (
+      typeof id !== "string" ||
+      typeof title !== "string" ||
+      typeof body !== "string" ||
+      typeof sentAt !== "string"
+    )
+      return [];
+
+    const sentAtDate = new Date(sentAt);
+    if (Number.isNaN(sentAtDate.getTime())) return [];
+
+    return [
+      {
+        id,
+        title,
+        body,
+        isChecked: getStoredBoolean(item.isChecked, false),
+        sentAt: sentAtDate,
+      },
+    ];
+  });
+}
+
+function getStoredStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function getInitialTimerState(): TimerState {
+  const defaultState = getDefaultTimerState();
+
+  if (typeof window === "undefined") return defaultState;
+
+  try {
+    const storedValue = window.localStorage.getItem(TIMER_STATE_STORAGE_KEY);
+    if (!storedValue) return defaultState;
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!isRecord(parsedValue)) return defaultState;
+
+    const now = Date.now();
+    const completedEyeRestNotificationIds = getStoredStringArray(
+      parsedValue.completedEyeRestNotificationIds,
+    );
+    const activeEyeRestNotificationId = getStoredStringOrNull(
+      parsedValue.activeEyeRestNotificationId,
+    );
+    let notificationHistory = getStoredNotificationHistory(
+      parsedValue.notificationHistory,
+    );
+    let isRunning = getStoredBoolean(
+      parsedValue.isRunning,
+      defaultState.isRunning,
+    );
+    let eyeRestEndsAt = getStoredNumberOrNull(parsedValue.eyeRestEndsAt);
+    let movementEndsAt = getStoredNumberOrNull(parsedValue.movementEndsAt);
+    let activeEyeRestEndsAt = getStoredNumberOrNull(
+      parsedValue.activeEyeRestEndsAt,
+    );
+    let isEyeRestActive = getStoredBoolean(
+      parsedValue.isEyeRestActive,
+      defaultState.isEyeRestActive,
+    );
+    let isEyeRestPending = getStoredBoolean(
+      parsedValue.isEyeRestPending,
+      defaultState.isEyeRestPending,
+    );
+    let eyeRestSecondsRemaining = getStoredNumber(
+      parsedValue.eyeRestSecondsRemaining,
+      defaultState.eyeRestSecondsRemaining,
+    );
+    let movementSecondsRemaining = getStoredNumber(
+      parsedValue.movementSecondsRemaining,
+      defaultState.movementSecondsRemaining,
+    );
+    let activeEyeRestSecondsRemaining = getStoredNumber(
+      parsedValue.activeEyeRestSecondsRemaining,
+      defaultState.activeEyeRestSecondsRemaining,
+    );
+
+    if (isRunning && eyeRestEndsAt !== null && movementEndsAt !== null) {
+      eyeRestSecondsRemaining = getSecondsUntil(eyeRestEndsAt);
+      movementSecondsRemaining = getSecondsUntil(movementEndsAt);
+    } else {
+      isRunning = false;
+      eyeRestEndsAt = null;
+      movementEndsAt = null;
+    }
+
+    if (isEyeRestActive && activeEyeRestEndsAt !== null) {
+      activeEyeRestSecondsRemaining = getSecondsUntil(activeEyeRestEndsAt);
+
+      if (activeEyeRestSecondsRemaining === 0) {
+        if (activeEyeRestNotificationId) {
+          completedEyeRestNotificationIds.push(activeEyeRestNotificationId);
+          notificationHistory = notificationHistory.map((message) =>
+            message.id === activeEyeRestNotificationId
+              ? { ...message, isChecked: true }
+              : message,
+          );
+        }
+
+        isEyeRestActive = false;
+        isEyeRestPending = false;
+        activeEyeRestEndsAt = null;
+        activeEyeRestSecondsRemaining = EYE_REST_DURATION_SECONDS;
+        eyeRestSecondsRemaining = TIMER_DURATION_SECONDS;
+        eyeRestEndsAt = isRunning ? now + TIMER_DURATION_SECONDS * 1000 : null;
+      }
+    } else {
+      isEyeRestActive = false;
+      activeEyeRestEndsAt = null;
+      activeEyeRestSecondsRemaining = EYE_REST_DURATION_SECONDS;
+    }
+
+    return {
+      activeEyeRestEndsAt,
+      activeEyeRestNotificationId: isEyeRestActive
+        ? activeEyeRestNotificationId
+        : null,
+      activeEyeRestSecondsRemaining,
+      completedEyeRestNotificationIds,
+      eyeRestEndsAt,
+      eyeRestSecondsRemaining,
+      isDarkMode: getStoredBoolean(
+        parsedValue.isDarkMode,
+        defaultState.isDarkMode,
+      ),
+      isEyeRestActive,
+      isEyeRestPending,
+      isRunning,
+      locale: getStoredLocale(parsedValue.locale),
+      movementEndsAt,
+      movementSecondsRemaining,
+      notificationHistory,
+      pendingEyeRestNotificationId: isEyeRestPending
+        ? getStoredStringOrNull(parsedValue.pendingEyeRestNotificationId)
+        : null,
+    };
+  } catch {
+    return defaultState;
+  }
+}
+
 type EyeRestNotificationMessage = {
   notificationHistoryId?: string;
-  type?: "start-eye-rest";
+  type?: "complete-eye-rest" | "start-eye-rest" | "complete-movement";
 };
 
 type EyeRestStartSource = "page" | "notification";
@@ -246,45 +493,143 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
-  const [eyeRestSecondsRemaining, setEyeRestSecondsRemaining] = useState(TIMER_DURATION_SECONDS);
-  const [movementSecondsRemaining, setMovementSecondsRemaining] = useState(MOVEMENT_REMINDER_DURATION_SECONDS);
-  const [activeEyeRestSecondsRemaining, setActiveEyeRestSecondsRemaining] = useState(EYE_REST_DURATION_SECONDS);
-  const [latestMovementReminder, setLatestMovementReminder] = useState<(typeof MOVEMENT_REMINDERS)[number] | null>(null);
-  const [eyeRestEndsAt, setEyeRestEndsAt] = useState<number | null>(null);
-  const [movementEndsAt, setMovementEndsAt] = useState<number | null>(null);
-  const [activeEyeRestEndsAt, setActiveEyeRestEndsAt] = useState<number | null>(null);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">(getInitialNotificationPermission);
-  const [isEyeRestPending, setIsEyeRestPending] = useState(false);
-  const [isEyeRestActive, setIsEyeRestActive] = useState(false);
-  const [notificationHistory, setNotificationHistory] = useState<NotificationHistoryItem[]>([]);
-  const isEyeRestPendingRef = useRef(false);
-  const isEyeRestActiveRef = useRef(false);
-  const activeEyeRestSecondsRemainingRef = useRef(EYE_REST_DURATION_SECONDS);
-  const pendingEyeRestNotificationIdRef = useRef<string | null>(null);
-  const activeEyeRestNotificationIdRef = useRef<string | null>(null);
-  const completedEyeRestNotificationIdsRef = useRef(new Set<string>());
+  const initialTimerStateRef = useRef(getInitialTimerState());
+  const initialTimerState = initialTimerStateRef.current;
+  const [eyeRestSecondsRemaining, setEyeRestSecondsRemaining] = useState(
+    initialTimerState.eyeRestSecondsRemaining,
+  );
+  const [movementSecondsRemaining, setMovementSecondsRemaining] = useState(
+    initialTimerState.movementSecondsRemaining,
+  );
+  const [activeEyeRestSecondsRemaining, setActiveEyeRestSecondsRemaining] =
+    useState(initialTimerState.activeEyeRestSecondsRemaining);
+  const [latestMovementReminder, setLatestMovementReminder] = useState<
+    (typeof MOVEMENT_REMINDERS)[number] | null
+  >(null);
+  const [eyeRestEndsAt, setEyeRestEndsAt] = useState<number | null>(
+    initialTimerState.eyeRestEndsAt,
+  );
+  const [movementEndsAt, setMovementEndsAt] = useState<number | null>(
+    initialTimerState.movementEndsAt,
+  );
+  const [activeEyeRestEndsAt, setActiveEyeRestEndsAt] = useState<number | null>(
+    initialTimerState.activeEyeRestEndsAt,
+  );
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission | "unsupported"
+  >(getInitialNotificationPermission);
+  const [isEyeRestPending, setIsEyeRestPending] = useState(
+    initialTimerState.isEyeRestPending,
+  );
+  const [isEyeRestActive, setIsEyeRestActive] = useState(
+    initialTimerState.isEyeRestActive,
+  );
+  const [notificationHistory, setNotificationHistory] = useState<
+    NotificationHistoryItem[]
+  >(initialTimerState.notificationHistory);
+  const isEyeRestPendingRef = useRef(initialTimerState.isEyeRestPending);
+  const isEyeRestActiveRef = useRef(initialTimerState.isEyeRestActive);
+  const activeEyeRestSecondsRemainingRef = useRef(
+    initialTimerState.activeEyeRestSecondsRemaining,
+  );
+  const pendingEyeRestNotificationIdRef = useRef<string | null>(
+    initialTimerState.pendingEyeRestNotificationId,
+  );
+  const activeEyeRestNotificationIdRef = useRef<string | null>(
+    initialTimerState.activeEyeRestNotificationId,
+  );
+  const completedEyeRestNotificationIdsRef = useRef(
+    new Set(initialTimerState.completedEyeRestNotificationIds),
+  );
   const isCompletingEyeRestRef = useRef(false);
-  const notificationRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const [locale, setLocale] = useState<Locale>("zh");
+  const notificationRegistrationRef = useRef<ServiceWorkerRegistration | null>(
+    null,
+  );
+  const [isDarkMode, setIsDarkMode] = useState(initialTimerState.isDarkMode);
+  const [locale, setLocale] = useState<Locale>(initialTimerState.locale);
   const [isLocaleMenuOpen, setIsLocaleMenuOpen] = useState(false);
   const localeMenuRef = useRef<HTMLDivElement>(null);
-  const [isRunning, setIsRunning] = useState(false);
+  const [isRunning, setIsRunning] = useState(initialTimerState.isRunning);
+  const isRunningRef = useRef(initialTimerState.isRunning);
   const copy = COPY[locale];
-  const currentLocaleLabel = LOCALE_OPTIONS.find((option) => option.value === locale)?.label ?? copy.localeToggle;
+  const currentLocaleLabel =
+    LOCALE_OPTIONS.find((option) => option.value === locale)?.label ??
+    copy.localeToggle;
+
+  useEffect(() => {
+    // Save durable state changes, not every displayed countdown tick.
+    const storedState: StoredTimerState = {
+      activeEyeRestEndsAt,
+      activeEyeRestNotificationId: activeEyeRestNotificationIdRef.current,
+      activeEyeRestSecondsRemaining,
+      completedEyeRestNotificationIds: Array.from(
+        completedEyeRestNotificationIdsRef.current,
+      ),
+      eyeRestEndsAt,
+      eyeRestSecondsRemaining,
+      isDarkMode,
+      isEyeRestActive,
+      isEyeRestPending,
+      isRunning,
+      locale,
+      movementEndsAt,
+      movementSecondsRemaining,
+      notificationHistory: notificationHistory.map((message) => ({
+        ...message,
+        sentAt: message.sentAt.toISOString(),
+      })),
+      pendingEyeRestNotificationId: pendingEyeRestNotificationIdRef.current,
+    };
+
+    try {
+      window.localStorage.setItem(
+        TIMER_STATE_STORAGE_KEY,
+        JSON.stringify(storedState),
+      );
+    } catch {
+      // Timers still work if storage is unavailable or full.
+    }
+  }, [
+    activeEyeRestEndsAt,
+    eyeRestEndsAt,
+    isDarkMode,
+    isEyeRestActive,
+    isEyeRestPending,
+    isRunning,
+    locale,
+    movementEndsAt,
+    notificationHistory,
+  ]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
     let isMounted = true;
 
-    function handleServiceWorkerMessage(event: MessageEvent<EyeRestNotificationMessage>) {
-      if (event.data?.type !== "start-eye-rest") return;
+    function handleServiceWorkerMessage(
+      event: MessageEvent<EyeRestNotificationMessage>,
+    ) {
+      if (event.data?.type === "start-eye-rest") {
+        startActiveEyeRest(event.data.notificationHistoryId, "notification");
+        return;
+      }
 
-      startActiveEyeRest(event.data.notificationHistoryId, "notification");
+      if (event.data?.type === "complete-eye-rest") {
+        completeActiveEyeRest(event.data.notificationHistoryId);
+      }
+
+      if (
+        event.data?.type === "complete-movement" &&
+        event.data.notificationHistoryId
+      ) {
+        checkNotificationMessage(event.data.notificationHistoryId);
+      }
     }
 
-    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+    navigator.serviceWorker.addEventListener(
+      "message",
+      handleServiceWorkerMessage,
+    );
     navigator.serviceWorker
       .register(`${import.meta.env.BASE_URL}sw.js`)
       .then((registration) => {
@@ -296,7 +641,10 @@ export default function Home() {
 
     return () => {
       isMounted = false;
-      navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+      navigator.serviceWorker.removeEventListener(
+        "message",
+        handleServiceWorkerMessage,
+      );
     };
   }, []);
 
@@ -380,10 +728,13 @@ export default function Home() {
     activeEyeRestSecondsRemainingRef.current = activeEyeRestSecondsRemaining;
   }, [activeEyeRestSecondsRemaining]);
 
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
+
   function clearActiveEyeRestState() {
     setIsEyeRestActive(false);
     isEyeRestActiveRef.current = false;
-    isCompletingEyeRestRef.current = false;
     setIsEyeRestPending(false);
     isEyeRestPendingRef.current = false;
     pendingEyeRestNotificationIdRef.current = null;
@@ -393,11 +744,17 @@ export default function Home() {
     setActiveEyeRestSecondsRemaining(EYE_REST_DURATION_SECONDS);
   }
 
-  function completeActiveEyeRest() {
+  function completeActiveEyeRest(
+    notificationHistoryId = activeEyeRestNotificationIdRef.current,
+  ) {
     if (isCompletingEyeRestRef.current) return;
+    if (
+      notificationHistoryId &&
+      activeEyeRestNotificationIdRef.current !== notificationHistoryId
+    )
+      return;
 
     isCompletingEyeRestRef.current = true;
-    const notificationHistoryId = activeEyeRestNotificationIdRef.current;
 
     if (notificationHistoryId) {
       checkNotificationMessage(notificationHistoryId);
@@ -406,7 +763,7 @@ export default function Home() {
     clearActiveEyeRestState();
     setEyeRestSecondsRemaining(TIMER_DURATION_SECONDS);
 
-    if (isRunning) {
+    if (isRunningRef.current) {
       setEyeRestEndsAt(Date.now() + TIMER_DURATION_SECONDS * 1000);
     } else {
       setEyeRestEndsAt(null);
@@ -420,7 +777,8 @@ export default function Home() {
   }, [activeEyeRestSecondsRemaining, isEyeRestActive, isRunning]);
 
   useEffect(() => {
-    const isEyeRestDue = eyeRestSecondsRemaining === 0 && !isEyeRestPending && !isEyeRestActive;
+    const isEyeRestDue =
+      eyeRestSecondsRemaining === 0 && !isEyeRestPending && !isEyeRestActive;
     const isMovementDue = movementSecondsRemaining === 0;
 
     if (!isRunning || (!isEyeRestDue && !isMovementDue)) return;
@@ -437,22 +795,13 @@ export default function Home() {
       setMovementSecondsRemaining(MOVEMENT_REMINDER_DURATION_SECONDS);
     }
 
-    if (isEyeRestDue && isMovementDue) {
-      const movementReminder = getMovementReminder();
-      setLatestMovementReminder(movementReminder);
-
+    if (isEyeRestDue) {
       showReminderNotification(
-        copy.combinedNotificationTitle,
-        copy.combinedNotificationBody
-          .replace("{title}", getLocalizedText(movementReminder.title, locale))
-          .replace("{body}", getLocalizedText(movementReminder.body, locale)),
+        copy.eyeRestNotificationTitle,
+        copy.eyeRestNotificationBody,
+        "eyeRest",
         startActiveEyeRest,
       );
-      return;
-    }
-
-    if (isEyeRestDue) {
-      showReminderNotification(copy.eyeRestNotificationTitle, copy.eyeRestNotificationBody, startActiveEyeRest);
       return;
     }
 
@@ -461,8 +810,18 @@ export default function Home() {
     showReminderNotification(
       getLocalizedText(movementReminder.title, locale),
       getLocalizedText(movementReminder.body, locale),
+      "movement",
     );
-  }, [copy, eyeRestSecondsRemaining, isEyeRestActive, isEyeRestPending, isRunning, locale, movementSecondsRemaining, notificationPermission]);
+  }, [
+    copy,
+    eyeRestSecondsRemaining,
+    isEyeRestActive,
+    isEyeRestPending,
+    isRunning,
+    locale,
+    movementSecondsRemaining,
+    notificationPermission,
+  ]);
 
   const eyeRestMinutes = Math.floor(eyeRestSecondsRemaining / 60);
   const eyeRestSeconds = eyeRestSecondsRemaining % 60;
@@ -471,13 +830,14 @@ export default function Home() {
   const movementSeconds = movementSecondsRemaining % 60;
   const movementTimerLabel = `${String(movementMinutes).padStart(2, "0")}:${String(movementSeconds).padStart(2, "0")}`;
   const activeEyeRestTimerLabel = `00:${String(activeEyeRestSecondsRemaining).padStart(2, "0")}`;
-  const notificationStatus = notificationPermission === "granted"
-    ? copy.notificationEnabled
-    : notificationPermission === "denied"
-      ? copy.notificationBlocked
-      : notificationPermission === "unsupported"
-        ? copy.notificationUnsupported
-        : copy.notificationPrompt;
+  const notificationStatus =
+    notificationPermission === "granted"
+      ? copy.notificationEnabled
+      : notificationPermission === "denied"
+        ? copy.notificationBlocked
+        : notificationPermission === "unsupported"
+          ? copy.notificationUnsupported
+          : copy.notificationPrompt;
 
   async function requestNotificationPermission() {
     if (typeof Notification === "undefined") {
@@ -504,8 +864,6 @@ export default function Home() {
 
     setIsEyeRestActive(false);
     isEyeRestActiveRef.current = false;
-    setIsEyeRestPending(false);
-    isEyeRestPendingRef.current = false;
     setActiveEyeRestEndsAt(null);
   }
 
@@ -513,12 +871,20 @@ export default function Home() {
     notificationHistoryId = pendingEyeRestNotificationIdRef.current,
     source: EyeRestStartSource = "page",
   ) {
-    if (notificationHistoryId && completedEyeRestNotificationIdsRef.current.has(notificationHistoryId)) return;
+    isCompletingEyeRestRef.current = false;
+
+    if (
+      notificationHistoryId &&
+      completedEyeRestNotificationIdsRef.current.has(notificationHistoryId)
+    )
+      return;
 
     if (isEyeRestActiveRef.current) return;
 
     if (!isEyeRestPendingRef.current && !isEyeRestActiveRef.current) {
-      if (activeEyeRestSecondsRemainingRef.current === EYE_REST_DURATION_SECONDS) {
+      if (
+        activeEyeRestSecondsRemainingRef.current === EYE_REST_DURATION_SECONDS
+      ) {
         isEyeRestPendingRef.current = true;
         setIsEyeRestPending(true);
       }
@@ -526,7 +892,9 @@ export default function Home() {
 
     if (!isEyeRestPendingRef.current && !isEyeRestActiveRef.current) return;
 
-    setActiveEyeRestEndsAt(Date.now() + activeEyeRestSecondsRemainingRef.current * 1000);
+    setActiveEyeRestEndsAt(
+      Date.now() + activeEyeRestSecondsRemainingRef.current * 1000,
+    );
     setIsEyeRestPending(true);
     isEyeRestPendingRef.current = true;
     setIsEyeRestActive(true);
@@ -548,7 +916,9 @@ export default function Home() {
 
     void registration.getNotifications().then((notifications) => {
       notifications.forEach((notification) => {
-        if (notification.data?.notificationHistoryId === notificationHistoryId) {
+        if (
+          notification.data?.notificationHistoryId === notificationHistoryId
+        ) {
           notification.close();
         }
       });
@@ -556,15 +926,23 @@ export default function Home() {
   }
 
   function checkNotificationMessage(notificationHistoryId: string) {
-    setNotificationHistory((currentHistory) => currentHistory.map((message) => (
-      message.id === notificationHistoryId ? { ...message, isChecked: true } : message
-    )));
+    setNotificationHistory((currentHistory) =>
+      currentHistory.map((message) =>
+        message.id === notificationHistoryId
+          ? { ...message, isChecked: true }
+          : message,
+      ),
+    );
   }
 
   function toggleNotificationMessage(notificationHistoryId: string) {
-    setNotificationHistory((currentHistory) => currentHistory.map((message) => (
-      message.id === notificationHistoryId ? { ...message, isChecked: !message.isChecked } : message
-    )));
+    setNotificationHistory((currentHistory) =>
+      currentHistory.map((message) =>
+        message.id === notificationHistoryId
+          ? { ...message, isChecked: !message.isChecked }
+          : message,
+      ),
+    );
   }
 
   function recordNotificationMessage(title: string, body: string) {
@@ -584,14 +962,23 @@ export default function Home() {
     return id;
   }
 
-  function showReminderNotification(title: string, body: string, onClick?: (notificationHistoryId?: string) => void) {
+  function showReminderNotification(
+    title: string,
+    body: string,
+    type: "eyeRest" | "movement",
+    onClick?: (notificationHistoryId?: string) => void,
+  ) {
     const notificationHistoryId = recordNotificationMessage(title, body);
 
     if (onClick) {
       pendingEyeRestNotificationIdRef.current = notificationHistoryId;
     }
 
-    if (notificationPermission !== "granted" || typeof Notification === "undefined") return;
+    if (
+      notificationPermission !== "granted" ||
+      typeof Notification === "undefined"
+    )
+      return;
 
     const tag = `outside-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const registration = notificationRegistrationRef.current;
@@ -600,9 +987,26 @@ export default function Home() {
       const notificationOptions: NotificationOptions & {
         actions?: Array<{ action: string; title: string }>;
       } = {
-        actions: onClick ? [{ action: "start-eye-rest", title: copy.startEyeRest }] : [],
+        actions:
+          type === "eyeRest"
+            ? [
+                {
+                  action: "start-eye-rest",
+                  title: copy.startEyeRest,
+                },
+              ]
+            : [
+                {
+                  action: "start-movement",
+                  title: copy.complete,
+                },
+              ],
         body,
-        data: { inProgressBody: copy.eyeRestInProgressNotificationBody, notificationHistoryId },
+        data: {
+          inProgressBody:
+            type === "eyeRest" ? copy.eyeRestInProgressNotificationBody : body,
+          notificationHistoryId,
+        },
         requireInteraction: true,
         tag,
       };
@@ -649,7 +1053,10 @@ export default function Home() {
     setEyeRestEndsAt(now + eyeRestSecondsRemaining * 1000);
     setMovementEndsAt(now + movementSecondsRemaining * 1000);
 
-    if (activeEyeRestSecondsRemaining > 0 && activeEyeRestSecondsRemaining < EYE_REST_DURATION_SECONDS) {
+    if (
+      activeEyeRestSecondsRemaining > 0 &&
+      activeEyeRestSecondsRemaining < EYE_REST_DURATION_SECONDS
+    ) {
       setActiveEyeRestEndsAt(now + activeEyeRestSecondsRemaining * 1000);
       setIsEyeRestActive(true);
       isEyeRestActiveRef.current = true;
@@ -661,13 +1068,21 @@ export default function Home() {
   }
 
   function handleReset() {
+    isCompletingEyeRestRef.current = false;
     setIsRunning(false);
     setEyeRestEndsAt(null);
     setMovementEndsAt(null);
     setLatestMovementReminder(null);
+    completedEyeRestNotificationIdsRef.current.clear();
     clearActiveEyeRestState();
     setEyeRestSecondsRemaining(TIMER_DURATION_SECONDS);
     setMovementSecondsRemaining(MOVEMENT_REMINDER_DURATION_SECONDS);
+
+    try {
+      window.localStorage.removeItem(TIMER_STATE_STORAGE_KEY);
+    } catch {
+      // Ignore unavailable storage; state has already been reset in memory.
+    }
   }
 
   function handleDarkModeToggle() {
@@ -695,7 +1110,11 @@ export default function Home() {
               {currentLocaleLabel}
             </button>
             {isLocaleMenuOpen && (
-              <div className="language-options" role="listbox" aria-label={copy.localeToggle}>
+              <div
+                className="language-options"
+                role="listbox"
+                aria-label={copy.localeToggle}
+              >
                 {LOCALE_OPTIONS.map((option) => (
                   <button
                     className="language-option"
@@ -725,7 +1144,12 @@ export default function Home() {
         <h1 id="timer-heading">{copy.title}</h1>
         <p className="intro">{copy.intro}</p>
 
-        <div className="timer-display" aria-label={copy.eyeRestAria.replace("{minutes}", String(eyeRestMinutes)).replace("{seconds}", String(eyeRestSeconds))}>
+        <div
+          className="timer-display"
+          aria-label={copy.eyeRestAria
+            .replace("{minutes}", String(eyeRestMinutes))
+            .replace("{seconds}", String(eyeRestSeconds))}
+        >
           <span>{eyeRestTimerLabel}</span>
           <small>{copy.timerCaption}</small>
         </div>
@@ -734,13 +1158,24 @@ export default function Home() {
           <span>{copy.moveIn}</span> <strong>{movementTimerLabel}</strong>
         </p>
 
-        <p className="notification-status" aria-live="polite">{notificationStatus}</p>
+        <p className="notification-status" aria-live="polite">
+          {notificationStatus}
+        </p>
 
-        <section className="notification-center" aria-labelledby="notification-center-heading">
+        <section
+          className="notification-center"
+          aria-labelledby="notification-center-heading"
+        >
           <div className="notification-center-header">
-            <h2 id="notification-center-heading">{copy.notificationCenterTitle}</h2>
+            <h2 id="notification-center-heading">
+              {copy.notificationCenterTitle}
+            </h2>
             {notificationHistory.length > 0 && (
-              <button className="notification-clear-button" type="button" onClick={() => setNotificationHistory([])}>
+              <button
+                className="notification-clear-button"
+                type="button"
+                onClick={() => setNotificationHistory([])}
+              >
                 {copy.clearNotifications}
               </button>
             )}
@@ -759,7 +1194,9 @@ export default function Home() {
                       aria-label={message.title}
                     />
                     <span>
-                      <time dateTime={message.sentAt.toISOString()}>{message.sentAt.toLocaleTimeString(locale)}</time>
+                      <time dateTime={message.sentAt.toISOString()}>
+                        {message.sentAt.toLocaleTimeString(locale)}
+                      </time>
                       <strong>{message.title}</strong>
                       <p>{message.body}</p>
                     </span>
@@ -770,14 +1207,20 @@ export default function Home() {
           )}
         </section>
 
-        {isEyeRestPending && !isEyeRestActive && (
-          <article className="pending-eye-rest-card" aria-live="assertive">
-            <p>{copy.pendingEyeRest}</p>
-            <button className="inline-action-button" type="button" onClick={() => startActiveEyeRest()}>
-              {copy.startEyeRest}
-            </button>
-          </article>
-        )}
+        {isEyeRestPending &&
+          !isEyeRestActive &&
+          activeEyeRestSecondsRemaining === EYE_REST_DURATION_SECONDS && (
+            <article className="pending-eye-rest-card" aria-live="assertive">
+              <p>{copy.pendingEyeRest}</p>
+              <button
+                className="inline-action-button"
+                type="button"
+                onClick={() => startActiveEyeRest()}
+              >
+                {copy.startEyeRest}
+              </button>
+            </article>
+          )}
 
         {latestMovementReminder && (
           <article className="movement-reminder-card" aria-live="polite">
@@ -793,16 +1236,35 @@ export default function Home() {
           </article>
         )}
 
-        {(isEyeRestActive || activeEyeRestSecondsRemaining < EYE_REST_DURATION_SECONDS) && (
+        {(isEyeRestActive ||
+          activeEyeRestSecondsRemaining < EYE_REST_DURATION_SECONDS) && (
           <p className="active-rest-timer" aria-live="polite">
             {copy.activeRest} <strong>{activeEyeRestTimerLabel}</strong>
           </p>
         )}
 
-        <button className="timer-button" type="button" onClick={handleTimerToggle}>
-          {isRunning ? copy.pauseTimers : eyeRestSecondsRemaining === TIMER_DURATION_SECONDS && movementSecondsRemaining === MOVEMENT_REMINDER_DURATION_SECONDS ? copy.startTimer : copy.resumeTimers}
+        <button
+          className="timer-button"
+          type="button"
+          onClick={handleTimerToggle}
+        >
+          {isRunning
+            ? copy.pauseTimers
+            : eyeRestSecondsRemaining === TIMER_DURATION_SECONDS &&
+                movementSecondsRemaining === MOVEMENT_REMINDER_DURATION_SECONDS
+              ? copy.startTimer
+              : copy.resumeTimers}
         </button>
-        <button className="reset-button" type="button" onClick={handleReset} disabled={eyeRestSecondsRemaining === TIMER_DURATION_SECONDS && movementSecondsRemaining === MOVEMENT_REMINDER_DURATION_SECONDS && !isRunning}>
+        <button
+          className="reset-button"
+          type="button"
+          onClick={handleReset}
+          disabled={
+            eyeRestSecondsRemaining === TIMER_DURATION_SECONDS &&
+            movementSecondsRemaining === MOVEMENT_REMINDER_DURATION_SECONDS &&
+            !isRunning
+          }
+        >
           {copy.reset}
         </button>
 
