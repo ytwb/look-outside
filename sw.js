@@ -3,14 +3,31 @@ const EYE_REST_DURATION_SECONDS = 20;
 self.addEventListener("notificationclick", (event) => {
   const notification = event.notification;
 
-  if (event.action !== "start-eye-rest") {
-    notification.close();
+  if (event.action === "start-movement") {
+    event.waitUntil(
+      (async () => {
+        const clients = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+
+        clients.forEach((client) => {
+          client.postMessage({
+            notificationHistoryId: notification.data?.notificationHistoryId,
+            type: "complete-movement",
+          });
+        });
+      })(),
+    );
     return;
   }
 
   event.waitUntil(
     (async () => {
-      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
 
       clients.forEach((client) => {
         client.postMessage({
@@ -26,10 +43,23 @@ self.addEventListener("notificationclick", (event) => {
         tag: notification.tag,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, EYE_REST_DURATION_SECONDS * 1000));
+      await new Promise((resolve) =>
+        setTimeout(resolve, EYE_REST_DURATION_SECONDS * 1000),
+      );
 
-      const notifications = await self.registration.getNotifications({ tag: notification.tag });
-      notifications.forEach((currentNotification) => currentNotification.close());
+      const notifications = await self.registration.getNotifications({
+        tag: notification.tag,
+      });
+      notifications.forEach((currentNotification) =>
+        currentNotification.close(),
+      );
+
+      clients.forEach((client) => {
+        client.postMessage({
+          notificationHistoryId: notification.data?.notificationHistoryId,
+          type: "complete-eye-rest",
+        });
+      });
     })(),
   );
 });
